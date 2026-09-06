@@ -87,7 +87,7 @@ public class AiBrain {
 				});
 	}
 
-	private static String systemPrompt() {
+	private String systemPrompt() {
 		return """
 				Ты — NPC-игрок в Minecraft по имени %s. Характер: %s
 				Тебе присылают JSON с состоянием мира вокруг тебя. Ты отвечаешь ТОЛЬКО валидным JSON-объектом:
