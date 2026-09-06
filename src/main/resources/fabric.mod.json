@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "playeregg",
+	"version": "${version}",
+	"name": "Player Spawn Egg",
+	"description": "Добавляет яйцо призыва игрока. Призванный игрок просто стоит на месте.",
+	"authors": ["Igorka197"],
+	"contact": {
+		"repo": "https://github.com/Igorka197/AiArena"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["com.igorka.playeregg.PlayerEggMod"],
+		"client": ["com.igorka.playeregg.client.PlayerEggClientMod"]
+	},
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	}
+}
