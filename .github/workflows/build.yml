@@ -27,7 +27,17 @@ jobs:
           cache-disabled: true
 
       - name: Build
-        run: gradle build --stacktrace --no-daemon
+        id: build
+        run: |
+          set -o pipefail
+          gradle build --no-daemon 2>&1 | tee build.log
+
+      - name: Report compile errors
+        if: failure()
+        run: |
+          grep -E "error:|Caused by:|What went wrong" build.log | head -60 | while IFS= read -r l; do
+            echo "::error::$l"
+          done
 
       - name: Upload jar artifact
         uses: actions/upload-artifact@v4
