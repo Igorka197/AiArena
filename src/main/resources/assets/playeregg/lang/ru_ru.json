@@ -1,4 +1,14 @@
 {
 	"item.playeregg.clone_player_spawn_egg": "Яйцо призыва игрока",
-	"entity.playeregg.clone_player": "Игрок"
+	"item.playeregg.ai_remote": "Пульт ИИ",
+	"entity.playeregg.clone_player": "Игрок",
+	"screen.playeregg.ai_config": "Настройка ИИ (Groq)",
+	"screen.playeregg.api_key": "Groq API-ключ (gsk_...)",
+	"screen.playeregg.model": "Модель",
+	"screen.playeregg.personality": "Характер NPC",
+	"screen.playeregg.interval": "Интервал думания (тики)",
+	"screen.playeregg.enabled": "ИИ включён",
+	"screen.playeregg.save": "Сохранить",
+	"key.playeregg.open_config": "Открыть настройки ИИ",
+	"key.categories.playeregg": "Яйцо призыва игрока"
 }
