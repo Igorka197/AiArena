@@ -18,6 +18,12 @@ public class AiConfig {
 	public int thinkIntervalTicks = 40;
 	public boolean enabled = true;
 	public boolean debug = false;
+	public String providerName = AiProvider.CEREBRAS.name();
+
+	public AiProvider provider() {
+		try { return AiProvider.valueOf(providerName); }
+		catch (Exception e) { return AiProvider.CEREBRAS; }
+	}
 
 	private static AiConfig instance;
 

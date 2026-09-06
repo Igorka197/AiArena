@@ -2,8 +2,15 @@ package com.igorka.playeregg.ai;
 
 /** Настройки ИИ на сервере (присылаются клиентом из меню). */
 public final class ServerAiSettings {
-	/** Единственная поддерживаемая модель: быстрая и умная. */
-	public static final String MODEL = "openai/gpt-oss-20b";
+	/** Активный провайдер (по умолчанию — самый быстрый). */
+	private static AiProvider provider = AiProvider.CEREBRAS;
+
+	public static synchronized AiProvider provider() { return provider; }
+	public static synchronized String model() { return provider.model; }
+	public static synchronized String endpoint() { return provider.endpoint; }
+
+	/** Совместимость со старым кодом. */
+	public static synchronized String MODEL() { return provider.model; }
 
 	private static String apiKey = "";
 	private static String personality = "Дружелюбный игрок Minecraft, выполняет просьбы и болтает.";
@@ -13,7 +20,9 @@ public final class ServerAiSettings {
 
 	private ServerAiSettings() {}
 
-	public static synchronized void update(String key, String person, int interval, boolean on, boolean dbg) {
+	public static synchronized void update(String key, String person, int interval,
+	                                       boolean on, boolean dbg, AiProvider prov) {
+		if (prov != null) provider = prov;
 		if (key != null) apiKey = key.trim();
 		if (person != null && !person.isBlank()) personality = person.trim();
 		thinkIntervalTicks = Math.max(20, Math.min(400, interval));

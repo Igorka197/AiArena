@@ -11,5 +11,6 @@
 	"screen.playeregg.save": "Save",
 	"screen.playeregg.get_key": "Get a free key: console.groq.com/keys",
 	"key.playeregg.open_config": "Open AI settings",
-	"key.categories.playeregg": "Player Spawn Egg"
+	"key.categories.playeregg": "Player Spawn Egg",
+	"screen.playeregg.provider": "AI provider"
 }

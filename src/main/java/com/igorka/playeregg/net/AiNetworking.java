@@ -20,6 +20,7 @@ public final class AiNetworking {
 			int interval = buf.readVarInt();
 			boolean enabled = buf.readBoolean();
 			boolean debug = buf.readBoolean();
+			String providerName = buf.readString(32);
 
 			server.execute(() -> {
 				if (server.isDedicated() && !player.hasPermissionLevel(2)) {
@@ -27,9 +28,12 @@ public final class AiNetworking {
 							.formatted(Formatting.RED), false);
 					return;
 				}
-				ServerAiSettings.update(key, personality, interval, enabled, debug);
+				com.igorka.playeregg.ai.AiProvider prov;
+				try { prov = com.igorka.playeregg.ai.AiProvider.valueOf(providerName); }
+				catch (Exception e) { prov = com.igorka.playeregg.ai.AiProvider.CEREBRAS; }
+				ServerAiSettings.update(key, personality, interval, enabled, debug, prov);
 				player.sendMessage(Text.literal("[PlayerEgg] Настройки ИИ применены ("
-						+ ServerAiSettings.MODEL + ", интервал " + interval + " тиков).")
+						+ ServerAiSettings.model() + ", интервал " + interval + " тиков).")
 						.formatted(Formatting.GREEN), false);
 			});
 		});

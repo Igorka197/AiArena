@@ -1,6 +1,7 @@
 package com.igorka.playeregg.client;
 
 import com.igorka.playeregg.ai.AiConfig;
+import com.igorka.playeregg.ai.AiProvider;
 import com.igorka.playeregg.ai.ServerAiSettings;
 import com.igorka.playeregg.net.AiNetworking;
 import net.fabricmc.api.EnvType;
@@ -27,6 +28,7 @@ public class AiConfigScreen extends Screen {
 	private TextFieldWidget personalityField;
 	private TextFieldWidget intervalField;
 	private boolean enabled;
+	private AiProvider provider;
 	private boolean debug;
 	private boolean showKey = false;
 
@@ -40,6 +42,7 @@ public class AiConfigScreen extends Screen {
 		AiConfig cfg = AiConfig.get();
 		this.enabled = cfg.enabled;
 		this.debug = cfg.debug;
+		this.provider = cfg.provider();
 
 		int cx = this.width / 2;
 		int y = 46;
@@ -57,6 +60,13 @@ public class AiConfigScreen extends Screen {
 		addDrawableChild(ButtonWidget.builder(Text.literal(showKey ? "*" : "O"),
 						b -> { showKey = !showKey; this.clearAndInit(); })
 				.dimensions(cx + 130, y, 20, 20).build());
+
+		y += 26;
+		addDrawableChild(CyclingButtonWidget.<AiProvider>builder(pr -> Text.literal(pr.displayName))
+				.values(AiProvider.values())
+				.initially(provider)
+				.build(cx - 150, y, 300, 20, Text.translatable("screen.playeregg.provider"),
+						(btn, val) -> { this.provider = val; this.clearAndInit(); }));
 
 		y += 42;
 		personalityField = new TextFieldWidget(this.textRenderer, cx - 150, y, 300, 20,
@@ -91,9 +101,9 @@ public class AiConfigScreen extends Screen {
 		addDrawableChild(ButtonWidget.builder(
 						Text.translatable("screen.playeregg.get_key"),
 						b -> this.client.setScreen(new ConfirmLinkScreen(ok -> {
-							if (ok) Util.getOperatingSystem().open("https://console.groq.com/keys");
+							if (ok) Util.getOperatingSystem().open(provider.keyUrl);
 							this.client.setScreen(this);
-						}, "https://console.groq.com/keys", true)))
+						}, provider.keyUrl, true)))
 				.dimensions(cx - 150, y, 300, 20).build());
 	}
 
@@ -103,6 +113,7 @@ public class AiConfigScreen extends Screen {
 		cfg.personality = personalityField.getText().trim();
 		cfg.enabled = enabled;
 		cfg.debug = debug;
+		cfg.providerName = provider.name();
 		try {
 			cfg.thinkIntervalTicks = Math.max(20, Math.min(400, Integer.parseInt(intervalField.getText().trim())));
 		} catch (NumberFormatException ignored) {
@@ -121,6 +132,7 @@ public class AiConfigScreen extends Screen {
 		buf.writeVarInt(cfg.thinkIntervalTicks);
 		buf.writeBoolean(cfg.enabled);
 		buf.writeBoolean(cfg.debug);
+		buf.writeString(cfg.provider().name(), 32);
 		ClientPlayNetworking.send(AiNetworking.SETTINGS, buf);
 	}
 
@@ -129,16 +141,16 @@ public class AiConfigScreen extends Screen {
 		this.renderBackground(ctx);
 		ctx.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 16, 0xFFFFFF);
 		ctx.drawCenteredTextWithShadow(this.textRenderer,
-				Text.literal("Модель: " + ServerAiSettings.MODEL).formatted(Formatting.DARK_GRAY),
+				Text.literal(provider.displayName + " · " + provider.model).formatted(Formatting.DARK_GRAY),
 				this.width / 2, 28, 0x808080);
 
 		int cx = this.width / 2;
 		ctx.drawTextWithShadow(this.textRenderer,
 				Text.translatable("screen.playeregg.api_key").formatted(Formatting.GRAY), cx - 150, 34, 0xA0A0A0);
 		ctx.drawTextWithShadow(this.textRenderer,
-				Text.translatable("screen.playeregg.personality").formatted(Formatting.GRAY), cx - 150, 76, 0xA0A0A0);
+				Text.translatable("screen.playeregg.personality").formatted(Formatting.GRAY), cx - 150, 102, 0xA0A0A0);
 		ctx.drawTextWithShadow(this.textRenderer,
-				Text.translatable("screen.playeregg.interval").formatted(Formatting.GRAY), cx - 150, 118, 0xA0A0A0);
+				Text.translatable("screen.playeregg.interval").formatted(Formatting.GRAY), cx - 150, 144, 0xA0A0A0);
 
 		keyField.render(ctx, mouseX, mouseY, delta);
 		personalityField.render(ctx, mouseX, mouseY, delta);

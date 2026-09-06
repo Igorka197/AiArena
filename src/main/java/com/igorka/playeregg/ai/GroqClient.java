@@ -29,7 +29,6 @@ import java.util.concurrent.*;
  * не ждёт сеть.
  */
 public final class GroqClient {
-	private static final String ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 	private static final Gson GSON = new Gson();
 	private static final int MAX_RETRIES = 3;
 
@@ -85,7 +84,7 @@ public final class GroqClient {
 	                                                 int tryNo, long startNanos) {
 		final String payload = buildPayload(messages);
 
-		HttpRequest req = HttpRequest.newBuilder(URI.create(ENDPOINT))
+		HttpRequest req = HttpRequest.newBuilder(URI.create(ServerAiSettings.endpoint()))
 				.timeout(Duration.ofSeconds(12))
 				.header("Content-Type", "application/json")
 				.header("Authorization", "Bearer " + apiKey.trim())
@@ -110,15 +109,17 @@ public final class GroqClient {
 		}
 
 		JsonObject body = new JsonObject();
-		body.addProperty("model", ServerAiSettings.MODEL);
+		body.addProperty("model", ServerAiSettings.model());
 		body.add("messages", msgs);
 		body.addProperty("temperature", 0.2);
 		// ВАЖНО: max_completion_tokens, а НЕ max_tokens (иначе 400 на reasoning-моделях)
 		body.addProperty("max_completion_tokens", MAX_COMPLETION_TOKENS);
 		body.addProperty("top_p", 1);
 		body.addProperty("stream", false);
-		// низкое усилие рассуждений = меньше latency и нет пустого content
-		body.addProperty("reasoning_effort", "low");
+		// reasoning_effort поддерживают только gpt-oss; для других моделей это 400
+		if (ServerAiSettings.provider().isReasoningModel()) {
+			body.addProperty("reasoning_effort", "low");
+		}
 
 		JsonObject fmt = new JsonObject();
 		fmt.addProperty("type", "json_object");
@@ -174,7 +175,7 @@ public final class GroqClient {
 		lastError = switch (code) {
 			case 401 -> "неверный API-ключ (401)";
 			case 403 -> "доступ запрещён (403)";
-			case 404 -> "модель не найдена (404): " + ServerAiSettings.MODEL;
+			case 404 -> "модель не найдена (404): " + ServerAiSettings.model();
 			case 429 -> "лимит запросов Groq (429) — увеличь интервал думания";
 			default -> "Groq HTTP " + code;
 		};

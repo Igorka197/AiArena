@@ -11,5 +11,6 @@
 	"screen.playeregg.save": "Сохранить",
 	"screen.playeregg.get_key": "Получить бесплатный ключ: console.groq.com/keys",
 	"key.playeregg.open_config": "Открыть настройки ИИ",
-	"key.categories.playeregg": "Яйцо призыва игрока"
+	"key.categories.playeregg": "Яйцо призыва игрока",
+	"screen.playeregg.provider": "Провайдер ИИ"
 }
