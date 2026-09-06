@@ -1,41 +1,97 @@
-# Player Spawn Egg (Fabric 1.20.1)
+# Player Spawn Egg + AI (Fabric 1.20.1)
 
-Мод для Minecraft 1.20.1 на **Fabric**: добавляет **яйцо призыва игрока**.
-Призванный «игрок» — это моб с моделью и скином Стива, у которого полностью
-отключён ИИ: он просто **стоит на месте**, не ходит, не толкается и не отбрасывается.
+Мод для Minecraft **1.20.1 / Fabric**: яйцо призыва **NPC-игрока**, которым управляет
+нейросеть через **бесплатный Groq API**. NPC видит окружение, ходит, прыгает, приседает,
+бегает, следует за тобой и **отвечает в чат**.
 
-## Что внутри
+## Возможности
 
-| Файл | Назначение |
+- 🥚 **Яйцо призыва игрока** — спавнит NPC с моделью и скином игрока.
+- 🔑 **Меню ввода API-ключа** — вводишь бесплатный ключ Groq прямо в игре (клавиша **G**).
+- 🧠 **ИИ-мозг** — раз в N тиков отправляет модели состояние мира и получает решение.
+- 🚶 **Управление**: `move_to` (идти к координатам), `follow` (следовать за игроком),
+  `wander` (бродить), `stop`, `look_at`, плюс флаги `jump`, `sneak`, `sprint`.
+- 💬 **Чат** — пишешь в чат рядом с NPC, он слышит и отвечает.
+
+### Что ИИ знает о мире
+
+Каждый «такт мышления» модель получает JSON:
+
+| Раздел | Содержимое |
 |---|---|
-| `build.gradle`, `settings.gradle`, `gradle.properties` | шаблон фабрик-мода (Loom 1.6, Yarn 1.20.1+build.10, Loader 0.15.11, Fabric API 0.92.2) |
-| `PlayerEggMod.java` | регистрация сущности `playeregg:clone_player` и предмета `playeregg:clone_player_spawn_egg` |
-| `entity/ClonePlayerEntity.java` | сама сущность: без целей ИИ, скорость 0, knockback resistance 1 |
-| `client/PlayerEggClientMod.java` + `ClonePlayerEntityRenderer.java` | рендер моделью игрока (`EntityModelLayers.PLAYER`) + предмет в руке |
-| `assets/playeregg/...` | модель предмета и переводы (en_us / ru_ru) |
+| `self` | координаты, yaw, здоровье, на земле ли, в воде ли, приседает ли |
+| `environment` | время суток, день/ночь, дождь, измерение, уровень света, биом |
+| `blocks` | блок под ногами / на уровне ног / головы, блок спереди и над ним, `obstacle_ahead`, `drop_ahead` |
+| `players_nearby` | ники, дистанция, координаты, предмет в руке (радиус 40) |
+| `mobs_nearby` | тип и дистанция до 8 мобов (радиус 16) |
+| `chat_messages` | реплики игроков, услышанные с прошлого запроса |
 
-Яйцо автоматически добавляется во вкладку креатива **«Яйца призыва»**.
+Модель отвечает строго JSON-объектом:
 
-## Сборка
-
-Нужны JDK 17 и интернет (Gradle сам скачает зависимости):
-
-```bash
-# один раз сгенерировать wrapper (jar не хранится в репо)
-gradle wrapper --gradle-version 8.7
-
-./gradlew build          # готовый jar -> build/libs/playeregg-1.0.0.jar
-./gradlew runClient      # запустить тестовый клиент
+```json
+{
+  "action": "follow",
+  "target": "Igorka197",
+  "jump": false,
+  "sneak": false,
+  "sprint": true,
+  "say": "Иду за тобой!"
+}
 ```
 
-Готовый jar кинуть в `mods/` рядом с **Fabric Loader 0.15+** и **Fabric API**.
+## Установка
+
+1. **Fabric Loader** для 1.20.1 — https://fabricmc.net/use/installer
+2. **Fabric API** для 1.20.1 — https://modrinth.com/mod/fabric-api/versions?g=1.20.1
+3. Скачай `playeregg-1.1.0.jar` из **[Releases](../../releases/tag/latest)** и кинь вместе с Fabric API в `.minecraft/mods`.
+
+## Настройка ИИ (бесплатно)
+
+1. Зайди на **https://console.groq.com/keys**, зарегистрируйся, нажми *Create API Key*.
+   Скопируй ключ вида `gsk_...` (бесплатный тариф, лимит по запросам в минуту).
+2. В игре нажми **G** (или ПКМ предметом «Пульт ИИ»).
+3. Вставь ключ, выбери модель, задай характер NPC, нажми **Сохранить**.
+
+Ключ хранится локально в `config/playeregg.json` и отправляется на сервер, где работает NPC
+(на выделенном сервере настройки применяет только оператор). Альтернатива — переменная окружения `GROQ_API_KEY`.
+
+### Параметры меню
+
+| Параметр | Смысл |
+|---|---|
+| **Groq API-ключ** | твой `gsk_...` (маскируется, кнопка 👁 показывает) |
+| **Модель** | `llama-3.3-70b-versatile` (умная), `llama-3.1-8b-instant` (быстрая), gpt-oss, qwen3 |
+| **Характер NPC** | системная подсказка личности |
+| **Интервал думания** | тиков между запросами (60 = 3 сек; меньше — умнее и дороже по лимитам) |
+| **ИИ включён** | выкл → NPC просто стоит на месте |
 
 ## Использование
 
-Креатив → вкладка «Яйца призыва» → «Яйцо призыва игрока», ПКМ по блоку.
-Или командой:
+Креатив → «Яйца призыва» → **Яйцо призыва игрока**, ПКМ по земле. Затем просто напиши в чат.
 
 ```
 /give @s playeregg:clone_player_spawn_egg
+/give @s playeregg:ai_remote
 /summon playeregg:clone_player ~ ~ ~
+```
+
+Без API-ключа NPC работает как в версии 1.0 — просто стоит на месте.
+
+## Сборка из исходников
+
+```bash
+gradle wrapper --gradle-version 8.7
+./gradlew build        # build/libs/playeregg-*.jar
+./gradlew runClient
+```
+
+## Структура
+
+```
+ai/     AiConfig, ServerAiSettings, GroqClient, AiBrain, AiAction
+entity/ ClonePlayerEntity   — движение, прыжки, приседание, чат
+client/ AiConfigScreen      — меню ввода ключа
+        ClonePlayerEntityRenderer, PlayerEggClientMod
+net/    AiNetworking        — клиент -> сервер
+item/   AiConfigItem        — пульт ИИ
 ```
