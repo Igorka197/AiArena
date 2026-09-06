@@ -3,11 +3,11 @@ package com.igorka.playeregg.ai;
 /** Настройки ИИ на сервере (присылаются клиентом из меню). */
 public final class ServerAiSettings {
 	/** Единственная поддерживаемая модель: быстрая и умная. */
-	public static final String MODEL = "llama-3.3-70b-versatile";
+	public static final String MODEL = "openai/gpt-oss-120b";
 
 	private static String apiKey = "";
 	private static String personality = "Дружелюбный игрок Minecraft, выполняет просьбы и болтает.";
-	private static int thinkIntervalTicks = 40;
+	private static int thinkIntervalTicks = 60;
 	private static boolean enabled = true;
 	private static boolean debug = false;
 

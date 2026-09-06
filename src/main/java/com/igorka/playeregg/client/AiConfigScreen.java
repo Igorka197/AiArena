@@ -106,7 +106,7 @@ public class AiConfigScreen extends Screen {
 		try {
 			cfg.thinkIntervalTicks = Math.max(20, Math.min(400, Integer.parseInt(intervalField.getText().trim())));
 		} catch (NumberFormatException ignored) {
-			cfg.thinkIntervalTicks = 40;
+			cfg.thinkIntervalTicks = 60;
 		}
 		cfg.save();
 		sendToServer(cfg);

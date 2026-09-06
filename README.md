@@ -95,3 +95,8 @@ client/ AiConfigScreen      — меню ввода ключа
 net/    AiNetworking        — клиент -> сервер
 item/   AiConfigItem        — пульт ИИ
 ```
+
+## Модель
+
+Используется одна модель — **`openai/gpt-oss-120b`** (быстрая и умная, актуальна на free-tier Groq).
+Старая `llama-3.3-70b-versatile` отключена Groq 16.08.2026 — если ИИ «молчал», причина была в этом.
