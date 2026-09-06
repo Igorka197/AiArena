@@ -4,11 +4,12 @@
 	"entity.playeregg.clone_player": "Игрок",
 	"screen.playeregg.ai_config": "Настройка ИИ (Groq)",
 	"screen.playeregg.api_key": "Groq API-ключ (gsk_...)",
-	"screen.playeregg.model": "Модель",
 	"screen.playeregg.personality": "Характер NPC",
 	"screen.playeregg.interval": "Интервал думания (тики)",
 	"screen.playeregg.enabled": "ИИ включён",
+	"screen.playeregg.debug": "Отладка в логи",
 	"screen.playeregg.save": "Сохранить",
+	"screen.playeregg.get_key": "Получить бесплатный ключ: console.groq.com/keys",
 	"key.playeregg.open_config": "Открыть настройки ИИ",
 	"key.categories.playeregg": "Яйцо призыва игрока"
 }

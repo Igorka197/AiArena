@@ -4,11 +4,12 @@
 	"entity.playeregg.clone_player": "Player",
 	"screen.playeregg.ai_config": "AI Setup (Groq)",
 	"screen.playeregg.api_key": "Groq API key (gsk_...)",
-	"screen.playeregg.model": "Model",
 	"screen.playeregg.personality": "NPC personality",
 	"screen.playeregg.interval": "Think interval (ticks)",
 	"screen.playeregg.enabled": "AI enabled",
+	"screen.playeregg.debug": "Debug logging",
 	"screen.playeregg.save": "Save",
+	"screen.playeregg.get_key": "Get a free key: console.groq.com/keys",
 	"key.playeregg.open_config": "Open AI settings",
 	"key.categories.playeregg": "Player Spawn Egg"
 }

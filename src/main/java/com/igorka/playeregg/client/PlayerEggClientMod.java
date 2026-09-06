@@ -2,18 +2,14 @@ package com.igorka.playeregg.client;
 
 import com.igorka.playeregg.PlayerEggMod;
 import com.igorka.playeregg.ai.AiConfig;
-import com.igorka.playeregg.net.AiNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.TypedActionResult;
 import org.lwjgl.glfw.GLFW;
 
@@ -59,13 +55,7 @@ public class PlayerEggClientMod implements ClientModInitializer {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			AiConfig cfg = AiConfig.get();
 			if (!cfg.hasKey()) return;
-			PacketByteBuf buf = PacketByteBufs.create();
-			buf.writeString(cfg.apiKey, 256);
-			buf.writeString(cfg.model, 128);
-			buf.writeString(cfg.personality, 512);
-			buf.writeVarInt(cfg.thinkIntervalTicks);
-			buf.writeBoolean(cfg.enabled);
-			ClientPlayNetworking.send(AiNetworking.SETTINGS, buf);
+			AiConfigScreen.sendToServer(cfg);
 		});
 	}
 }

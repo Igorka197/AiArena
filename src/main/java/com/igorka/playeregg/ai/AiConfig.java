@@ -8,16 +8,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Настройки ИИ (Groq). Хранятся в config/playeregg.json на стороне клиента. */
+/** Клиентский конфиг: config/playeregg.json */
 public class AiConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("playeregg.json");
 
 	public String apiKey = "";
-	public String model = "llama-3.3-70b-versatile";
-	public String personality = "Дружелюбный игрок Minecraft, любит болтать и исследовать мир.";
-	public int thinkIntervalTicks = 60;
+	public String personality = "Дружелюбный игрок Minecraft, выполняет просьбы и болтает.";
+	public int thinkIntervalTicks = 40;
 	public boolean enabled = true;
+	public boolean debug = false;
 
 	private static AiConfig instance;
 
@@ -36,11 +36,8 @@ public class AiConfig {
 				AiConfig cfg = GSON.fromJson(Files.readString(PATH), AiConfig.class);
 				if (cfg != null) return cfg;
 			}
-		} catch (Exception e) {
-			// битый конфиг -> дефолт
-		}
+		} catch (Exception ignored) {}
 		AiConfig cfg = new AiConfig();
-		// запасной вариант: переменная окружения
 		String env = System.getenv("GROQ_API_KEY");
 		if (env != null && !env.isBlank()) cfg.apiKey = env;
 		return cfg;
@@ -50,8 +47,6 @@ public class AiConfig {
 		try {
 			Files.createDirectories(PATH.getParent());
 			Files.writeString(PATH, GSON.toJson(this));
-		} catch (IOException e) {
-			// игнор
-		}
+		} catch (IOException ignored) {}
 	}
 }
