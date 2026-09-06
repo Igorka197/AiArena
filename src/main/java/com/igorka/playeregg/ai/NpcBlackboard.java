@@ -26,6 +26,15 @@ public class NpcBlackboard {
 	/** Дом-точка для патрулирования. */
 	public @Nullable Vec3d anchor;
 
+	/** Режим скорости для текущей цели (ходьба / бег / крадучись). */
+	public volatile MoveSpeed speed = MoveSpeed.WALK;
+
+	/** Сущность-цель для преследования (моб или игрок), если задана — идём за ней. */
+	public @Nullable net.minecraft.entity.Entity moveEntity;
+
+	/** Автономный режим: NPC сам решает, чем заняться, когда задач нет. */
+	public volatile boolean autonomous = true;
+
 	public synchronized void clearTargets() {
 		moveTarget = null;
 		followPlayer = null;
@@ -33,6 +42,7 @@ public class NpcBlackboard {
 		blockToPlace = null;
 		combatTarget = null;
 		resourceQuery = null;
+		moveEntity = null;
 	}
 
 	public synchronized void setState(NpcState s) {

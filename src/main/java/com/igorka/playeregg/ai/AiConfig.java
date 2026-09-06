@@ -15,7 +15,7 @@ public class AiConfig {
 
 	public String apiKey = "";
 	public String personality = "Дружелюбный игрок Minecraft, выполняет просьбы и болтает.";
-	public int thinkIntervalTicks = 60;
+	public int thinkIntervalTicks = 40;
 	public boolean enabled = true;
 	public boolean debug = false;
 

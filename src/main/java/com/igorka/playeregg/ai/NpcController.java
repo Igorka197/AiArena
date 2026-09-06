@@ -2,6 +2,7 @@ package com.igorka.playeregg.ai;
 
 import com.igorka.playeregg.entity.ClonePlayerEntity;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.Entity;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.pathing.EntityNavigation;
@@ -30,6 +31,8 @@ public class NpcController {
 	/** Радиус досягаемости рук игрока. */
 	private static final double REACH = 4.5D;
 	private static final double REACH_SQ = REACH * REACH;
+	/** Дистанция удара как в ванили: ~3 блока + габариты цели. */
+	private static final double ATTACK_REACH = 3.2D;
 	/** Кулдаун атаки ~0.6 с, как у меча в ванили. */
 	private static final int ATTACK_COOLDOWN = 12;
 
@@ -71,6 +74,8 @@ public class NpcController {
 		npc.setSprinting(bb.wantSprint && !bb.wantSneak && bb.state != NpcState.IDLE);
 
 		// 3) исполнение текущего состояния
+		if (bb.state != NpcState.IDLE) idleTicks = 0;
+
 		switch (bb.state) {
 			case IDLE -> tickIdle();
 			case GOTO -> tickGoto();
@@ -87,21 +92,73 @@ public class NpcController {
 
 	// ============================================================ СОСТОЯНИЯ
 
+	/** Таймер безделья: после него NPC сам придумывает занятие. */
+	private int idleTicks;
+
 	private void tickIdle() {
 		npc.getNavigation().stop();
 		npc.freezeMovement();     // полная неподвижность, без «мобьего» дрейфа
+
+		if (!bb.autonomous) { idleTicks = 0; return; }
+
+		// АВТОНОМИЯ: постоял 5 секунд — займись чем-нибудь сам, без запроса к LLM.
+		if (++idleTicks > 100) {
+			idleTicks = 0;
+			pickOwnActivity();
+		}
+	}
+
+	/**
+	 * Локальный «свободный выбор» занятия. Дёшево, без сети:
+	 * NPC гуляет, осматривается, идёт к игроку или просто стоит.
+	 */
+	private void pickOwnActivity() {
+		var rnd = npc.getRandom();
+		int roll = rnd.nextInt(100);
+
+		if (roll < 45) {                          // 45% — прогулка
+			bb.anchor = bb.anchor != null ? bb.anchor : npc.getPos();
+			bb.speed = MoveSpeed.WALK;
+			bb.setState(NpcState.PATROL);
+		} else if (roll < 60) {                   // 15% — подойти к ближайшему игроку
+			PlayerEntity p = npc.getWorld().getClosestPlayer(npc, 24.0D);
+			if (p != null) {
+				bb.moveTarget = p.getPos();
+				bb.speed = MoveSpeed.WALK;
+				bb.setState(NpcState.GOTO);
+			}
+		} else if (roll < 70) {                   // 10% — осмотреться
+			PlayerEntity p = npc.getWorld().getClosestPlayer(npc, 16.0D);
+			if (p != null) npc.lookAtEntitySmooth(p);
+		} else if (roll < 78) {                   // 8% — присесть/встать
+			bb.wantSneak = !bb.wantSneak;
+		} else if (roll < 84) {                   // 6% — подпрыгнуть
+			npc.requestJump();
+		}
+		// остальное — продолжаем стоять
 	}
 
 	private void tickGoto() {
 		if (bb.moveTarget == null) { bb.setState(NpcState.IDLE); return; }
 
+		// режим преследования сущности: цель пересчитывается каждый тик
+		if (bb.moveEntity != null) {
+			if (!bb.moveEntity.isAlive()) { bb.moveEntity = null; bb.setState(NpcState.IDLE); return; }
+			bb.moveTarget = bb.moveEntity.getPos();
+			npc.lookAtEntitySmooth(bb.moveEntity);
+		}
+
 		if (npc.squaredDistanceTo(bb.moveTarget) < 2.25D) {   // пришли (1.5 блока)
 			bb.moveTarget = null;
+			bb.moveEntity = null;
 			npc.getNavigation().stop();
+			npc.freezeMovement();
 			bb.setState(NpcState.IDLE);
 			return;
 		}
-		navigateTo(bb.moveTarget, 1.0D);
+		// спринт визуально включаем при беге
+		npc.setSprinting(bb.speed == MoveSpeed.RUN);
+		navigateTo(bb.moveTarget, bb.speed.multiplier);
 	}
 
 	private void tickFollow() {
@@ -113,7 +170,10 @@ public class NpcController {
 
 		// Цель пересчитывается ЛОКАЛЬНО каждый тик — следование мгновенное.
 		if (d2 > 12.0D) {                    // дальше ~3.5 блоков — догоняем
-			navigateTo(p.getPos(), d2 > 100 ? 1.3D : 1.05D);
+			// далеко — бежим, близко — идём шагом
+			boolean far = d2 > 64;
+			npc.setSprinting(far);
+			navigateTo(p.getPos(), far ? MoveSpeed.RUN.multiplier : MoveSpeed.WALK.multiplier);
 		} else if (d2 < 4.0D) {              // слишком близко — стоим
 			npc.getNavigation().stop();
 			npc.freezeMovement();
@@ -128,9 +188,9 @@ public class NpcController {
 			patrolCooldown = 40;
 			Vec3d t = net.minecraft.entity.ai.NoPenaltyTargeting.find(npc, 14, 7);
 			if (t != null && bb.anchor.squaredDistanceTo(t) < 40 * 40) {
-				npc.getNavigation().startMovingTo(t.x, t.y, t.z, 0.9D);
+				npc.getNavigation().startMovingTo(t.x, t.y, t.z, MoveSpeed.WALK.multiplier);
 			} else if (bb.anchor.squaredDistanceTo(npc.getPos()) > 40 * 40) {
-				navigateTo(bb.anchor, 1.0D);   // ушли слишком далеко — назад к якорю
+				navigateTo(bb.anchor, MoveSpeed.WALK.multiplier);   // ушли слишком далеко — назад к якорю
 			}
 		}
 	}
@@ -146,17 +206,20 @@ public class NpcController {
 
 		npc.lookAtEntitySmooth(target);
 		double d2 = npc.squaredDistanceTo(target);
+		// с учётом ширины цели, иначе по крупным мобам промахиваемся
+		double reach = ATTACK_REACH + target.getWidth();
+		double reachSq = reach * reach;
 
-		if (d2 > REACH_SQ) {
+		if (d2 > reachSq) {
 			// вне досягаемости — бежим к цели (спринт в бою)
 			npc.setSprinting(true);
-			navigateTo(target.getPos(), 1.25D);
+			navigateTo(target.getPos(), MoveSpeed.RUN.multiplier);
 		} else {
 			npc.getNavigation().stop();
 			npc.setSprinting(false);
 			if (attackCooldown == 0) {
 				npc.swingHand(Hand.MAIN_HAND);       // ванильная анимация взмаха
-				npc.tryAttack(target);
+				npc.performAttack(target);           // урон + сброс invulnerability
 				attackCooldown = ATTACK_COOLDOWN;
 			}
 		}
@@ -175,7 +238,7 @@ public class NpcController {
 
 		// далеко — сначала подходим (навигация, не телепорт)
 		if (npc.squaredDistanceTo(center) > REACH_SQ) {
-			navigateTo(center, 1.0D);
+			navigateTo(center, MoveSpeed.WALK.multiplier);
 			miningProgress = 0;
 			return;
 		}
@@ -219,30 +282,65 @@ public class NpcController {
 		bb.setState(NpcState.IDLE);
 	}
 
+	/** Установка блока: подходим, поворачиваемся, ставим. Работает и по цепочке точек. */
 	private void tickBuild() {
 		BlockPos pos = bb.blockTarget;
 		if (pos == null) { bb.setState(NpcState.IDLE); return; }
 
+		World world = npc.getWorld();
 		Vec3d center = Vec3d.ofCenter(pos);
-		if (npc.squaredDistanceTo(center) > REACH_SQ) { navigateTo(center, 1.0D); return; }
+
+		// подходим, если далеко (радиус установки ~4.5 блока)
+		if (npc.squaredDistanceTo(center) > REACH_SQ) {
+			navigateTo(center, MoveSpeed.WALK.multiplier);
+			return;
+		}
 
 		npc.getNavigation().stop();
+		npc.freezeMovement();
 		npc.lookAtPosSmooth(center);
 
-		World world = npc.getWorld();
-		if (world.getBlockState(pos).isReplaceable()) {
-			var block = Blocks.STONE;
-			if (bb.blockToPlace != null) {
-				Identifier id = Identifier.tryParse(bb.blockToPlace.contains(":")
-						? bb.blockToPlace : "minecraft:" + bb.blockToPlace);
-				if (id != null && Registries.BLOCK.containsId(id)) block = Registries.BLOCK.get(id);
+		// разбираем id блока; по умолчанию — камень
+		var block = Blocks.STONE;
+		if (bb.blockToPlace != null && !bb.blockToPlace.isBlank()) {
+			String raw = bb.blockToPlace.contains(":") ? bb.blockToPlace : "minecraft:" + bb.blockToPlace.trim();
+			Identifier id = Identifier.tryParse(raw);
+			if (id != null && Registries.BLOCK.containsId(id)) {
+				block = Registries.BLOCK.get(id);
 			}
-			npc.swingHand(Hand.MAIN_HAND);          // анимация установки
-			world.setBlockState(pos, block.getDefaultState());
+		}
+
+		BlockState existing = world.getBlockState(pos);
+		if (!existing.isReplaceable()) {
+			// место занято — ставим на блок выше, если там пусто
+			BlockPos up = pos.up();
+			if (world.getBlockState(up).isReplaceable()) {
+				pos = up;
+			} else {
+				npc.say("Здесь занято, не могу поставить.");
+				bb.blockTarget = null;
+				bb.setState(NpcState.IDLE);
+				return;
+			}
+		}
+
+		// не замуровываем себя
+		if (pos.equals(npc.getBlockPos()) || pos.equals(npc.getBlockPos().up())) {
+			bb.blockTarget = null;
+            bb.setState(NpcState.IDLE);
+			return;
+		}
+
+		npc.swingHand(Hand.MAIN_HAND);
+		boolean placed = world.setBlockState(pos, block.getDefaultState(), 3);
+		if (placed) {
 			world.playSound(null, pos, block.getDefaultState().getSoundGroup().getPlaceSound(),
 					SoundCategory.BLOCKS, 1.0F, 1.0F);
+			world.emitGameEvent(npc, net.minecraft.world.event.GameEvent.BLOCK_PLACE, pos);
 		}
+
 		bb.blockTarget = null;
+		bb.blockToPlace = null;
 		bb.setState(NpcState.IDLE);
 	}
 

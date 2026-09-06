@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class AiBrain {
 	private static final Gson GSON = new Gson();
-	private static final int MAX_HISTORY = 6;
+	private static final int MAX_HISTORY = 4;
 
 	private final ClonePlayerEntity npc;
 	private final NpcBlackboard bb;
@@ -36,6 +36,11 @@ public class AiBrain {
 	private int tickCounter;
 	private int failStreak;
 	private long lastErrorReport;
+
+	/** Был ли в текущем запросе чат от игрока. Без него говорить ЗАПРЕЩЕНО. */
+	private volatile boolean awaitingChatReply;
+	/** Последняя реплика — чтобы не повторяться. */
+	private volatile String lastSaid = "";
 
 	public AiBrain(ClonePlayerEntity npc, NpcBlackboard bb) {
 		this.npc = npc;
@@ -63,6 +68,8 @@ public class AiBrain {
 	}
 
 	private void think() {
+		synchronized (this) { awaitingChatReply = !pendingChat.isEmpty(); }
+		final boolean mayTalk = awaitingChatReply;
 		final String state = buildWorldState();
 
 		List<GroqClient.Message> messages = new ArrayList<>();
@@ -87,6 +94,16 @@ public class AiBrain {
 						}
 
 						// Применяем ТОЛЬКО в главном потоке сервера — потокобезопасность.
+						// ФИЛЬТР БОЛТЛИВОСТИ: реплика проходит только как ответ на чат
+						// и только если она не дублирует предыдущую.
+						if (!mayTalk) {
+							action.say = null;
+						} else if (action.say != null) {
+							String t = action.say.trim();
+							if (t.isEmpty() || t.equalsIgnoreCase(lastSaid)) action.say = null;
+							else lastSaid = t;
+						}
+
 						var server = npc.getServer();
 						if (server != null) server.execute(() -> {
 							if (npc.isAlive()) npc.applyDecision(action);
@@ -147,12 +164,24 @@ public class AiBrain {
 				- "equip"   — взять item в руку
 				- "drop", "swing", "look_at"
 
+				Дополнительные поля:
+				- "speed": "walk" | "run" | "sneak" — как быстро двигаться (по умолчанию walk).
+                - "target" для move_to может быть ником игрока или типом моба: пойдёшь к нему.
+
 				Правила:
 				1. Всегда выполняй прямую просьбу игрока из chat_messages.
-				2. Если тебе написали — обязательно заполни "say". Не молчи.
-				3. Задача продолжается сама, пока ты её не сменишь. Видишь current_state — не сбрасывай его без причины.
-				4. Координаты бери только из присланных данных.
-				5. Отвечай коротко, до 15 слов, на языке собеседника.
+				   "ударь меня" -> {"action":"attack","target":"<ник>"}
+				   "построй/поставь блок" -> {"action":"build","block":"minecraft:stone", x,y,z из useful_coords}
+				   "иди сюда" -> {"action":"move_to"} с координатами игрока
+				   "беги" -> добавь "speed":"run"
+				2. МОЛЧАНИЕ ПО УМОЛЧАНИЮ. Заполняй "say" ТОЛЬКО если в chat_messages есть
+				   сообщение, обращённое к тебе. Если chat_messages пуст — "say" ОБЯЗАТЕЛЬНО "".
+				   Никогда не комментируй свои действия и окружение по своей инициативе.
+				3. Не повторяй одну и ту же фразу дважды подряд.
+				4. Задача продолжается сама, пока ты её не сменишь. Видишь current_state — не сбрасывай без причины.
+				5. Координаты бери только из присланных данных (useful_coords, players_nearby).
+				6. Если делать нечего и вопросов нет — верни {"action":"patrol","say":""} или {"action":"stop","say":""}.
+				7. Отвечай коротко, до 15 слов, на языке собеседника.
 				""".formatted(safe(npc.getNpcName()), safe(ServerAiSettings.personality()));
 	}
 

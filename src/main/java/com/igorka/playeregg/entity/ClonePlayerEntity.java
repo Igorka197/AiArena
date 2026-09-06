@@ -67,10 +67,12 @@ public class ClonePlayerEntity extends PathAwareEntity {
 	public static DefaultAttributeContainer.Builder createAttributes() {
 		return MobEntity.createMobAttributes()
 				.add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0D)
-				.add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.1D)
+				.add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.30D)
 				.add(EntityAttributes.GENERIC_FOLLOW_RANGE, 64.0D)
 				.add(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, 0.0D)
-				.add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 2.0D);
+				.add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 3.0D)
+				.add(EntityAttributes.GENERIC_ATTACK_KNOCKBACK, 0.5D)
+				.add(EntityAttributes.GENERIC_ATTACK_SPEED, 4.0D);
 	}
 
 	@Override
@@ -122,12 +124,26 @@ public class ClonePlayerEntity extends PathAwareEntity {
 		if (a.sprint != null) blackboard.wantSprint = a.sprint;
 		if (AiAction.on(a.jump)) requestJump();
 
+		// режим скорости: явный speed, иначе sprint-флаг, иначе шаг
+		blackboard.speed = MoveSpeed.parse(a.speed,
+				AiAction.on(a.sprint) ? MoveSpeed.RUN
+						: AiAction.on(a.sneak) ? MoveSpeed.SNEAK : MoveSpeed.WALK);
+
 		switch (act) {
 			case "move_to", "goto" -> {
 				blackboard.clearTargets();
 				if (a.x != null && a.z != null) {
+					// точка на координатах
 					blackboard.moveTarget = new Vec3d(a.x, a.y != null ? a.y : this.getY(), a.z);
 					blackboard.setState(NpcState.GOTO);
+				} else if (a.target != null) {
+					// цель — игрок или моб: догоняем живую сущность
+					LivingEntity dest = resolveTarget(a.target);
+					if (dest != null) {
+						blackboard.moveEntity = dest;
+						blackboard.moveTarget = dest.getPos();
+						blackboard.setState(NpcState.GOTO);
+					}
 				}
 			}
 			case "follow" -> {
@@ -218,6 +234,30 @@ public class ClonePlayerEntity extends PathAwareEntity {
 	}
 
 	// ============================================ API ДЛЯ КОНТРОЛЛЕРА
+
+	/**
+	 * Атака цели с гарантированным прохождением урона.
+	 * tryAttack() часто «не бьёт» игроков из-за окна неуязвимости (20 тиков)
+	 * и из-за того, что игрок в креативе неуязвим — сбрасываем таймер явно.
+	 */
+	public void performAttack(LivingEntity target) {
+		// сбрасываем окно неуязвимости от предыдущего удара
+		if (target.timeUntilRegen > 10) target.timeUntilRegen = 10;
+
+		float damage = (float) this.getAttributeValue(EntityAttributes.GENERIC_ATTACK_DAMAGE);
+		boolean dealt = target.damage(this.getDamageSources().mobAttack(this), damage);
+
+		if (dealt) {
+			// ванильный отбрасывание + звук удара
+			target.takeKnockback(0.4D,
+					net.minecraft.util.math.MathHelper.sin(this.getYaw() * ((float) Math.PI / 180F)),
+					-net.minecraft.util.math.MathHelper.cos(this.getYaw() * ((float) Math.PI / 180F)));
+			this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
+					SoundEvents.ENTITY_PLAYER_ATTACK_STRONG,
+					this.getSoundCategory(), 1.0F, 1.0F);
+			this.onAttacking(target);
+		}
+	}
 
 	/** Запрос прыжка: исполнится, когда бот коснётся земли. */
 	public void requestJump() {

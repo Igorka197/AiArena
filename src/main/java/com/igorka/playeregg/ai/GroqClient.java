@@ -34,13 +34,13 @@ public final class GroqClient {
 	private static final int MAX_RETRIES = 3;
 
 	/** Бюджет с запасом: reasoning + сам ответ. Мало -> пустой content и finish_reason=length. */
-	private static final int MAX_COMPLETION_TOKENS = 1024;
+	private static final int MAX_COMPLETION_TOKENS = 220;
 
 	private static final ScheduledExecutorService SCHEDULER =
 			Executors.newSingleThreadScheduledExecutor(daemon("playeregg-retry"));
 
 	private static final HttpClient HTTP = HttpClient.newBuilder()
-			.connectTimeout(Duration.ofSeconds(8))
+			.connectTimeout(Duration.ofSeconds(5))
 			.version(HttpClient.Version.HTTP_2)
 			.executor(Executors.newFixedThreadPool(2, daemon("playeregg-groq")))
 			.build();
@@ -86,7 +86,7 @@ public final class GroqClient {
 		final String payload = buildPayload(messages);
 
 		HttpRequest req = HttpRequest.newBuilder(URI.create(ENDPOINT))
-				.timeout(Duration.ofSeconds(20))
+				.timeout(Duration.ofSeconds(12))
 				.header("Content-Type", "application/json")
 				.header("Authorization", "Bearer " + apiKey.trim())
 				.POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
@@ -112,7 +112,7 @@ public final class GroqClient {
 		JsonObject body = new JsonObject();
 		body.addProperty("model", ServerAiSettings.MODEL);
 		body.add("messages", msgs);
-		body.addProperty("temperature", 0.3);
+		body.addProperty("temperature", 0.2);
 		// ВАЖНО: max_completion_tokens, а НЕ max_tokens (иначе 400 на reasoning-моделях)
 		body.addProperty("max_completion_tokens", MAX_COMPLETION_TOKENS);
 		body.addProperty("top_p", 1);

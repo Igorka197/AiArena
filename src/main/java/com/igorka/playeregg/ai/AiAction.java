@@ -9,6 +9,7 @@ public class AiAction {
 	public String resource;  // что искать для seek
 	public String item;      // id предмета для equip
 	public Boolean jump, sneak, sprint;
+	public String speed;   // walk | run | sneak
 	public String say;
 
 	public static boolean on(Boolean b) { return b != null && b; }
